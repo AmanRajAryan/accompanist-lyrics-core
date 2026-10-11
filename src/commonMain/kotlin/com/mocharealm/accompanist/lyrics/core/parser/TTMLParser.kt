@@ -123,7 +123,7 @@ class TTMLParser(
         // 3. 解析主音轨翻译
         val inlineTranslation = p.children.firstOrNull {
             it.name == "span" && it.hasRole("x-translation") && !it.hasRole("x-bg")
-        }?.text?.trim()
+        }?.text?.trim()?.let(::decodeXmlEntities)
         val itunesTranslation = translations[itunesKey]
 
         // 4. 解析和声轨 (Background Vocals)
@@ -175,6 +175,7 @@ class TTMLParser(
                 .firstOrNull { it.hasRole("x-translation") }
                 ?.let(::extractTextContent)
                 ?.trim()
+                ?.let(::decodeXmlEntities)
                 ?.takeIf { it.isNotEmpty() }
                 ?: translations[bgKey]?.background
 
@@ -216,7 +217,7 @@ class TTMLParser(
         fun findTranslations(elem: XmlElement) {
             if (elem.name == "translation" || elem.name.endsWith(":translation")) {
                 elem.children.forEach { textElem ->
-                    if (textElem.name != "text") return@forEach
+                    if (textElem.name != "text" && !textElem.name.endsWith(":text")) return@forEach
 
                     val key = textElem.attr("for") ?: return@forEach
                     val main = decodeXmlEntities(textElem.text)
@@ -258,7 +259,7 @@ class TTMLParser(
                 elem.children.forEach { transElem ->
                     if (transElem.name == "transliteration" || transElem.name.endsWith(":transliteration")) {
                         transElem.children.forEach { textElem ->
-                            if (textElem.name == "text") {
+                            if (textElem.name == "text" || textElem.name.endsWith(":text")) {
                                 val key = textElem.attributes.find { it.name == "for" }?.value
                                 // 提取所有内部 span 的文本作为音标列表
                                 val phoneticSpans = textElem.children
