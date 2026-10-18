@@ -52,24 +52,26 @@ object EnhancedLrcExporter : ILyricsExporter {
                         KaraokeAlignment.End -> "v2: "
                         else -> ""
                     }
+                    val endTimestamp = line.syllables.lastOrNull()?.end ?: line.end
                     // Export Main Line with syllable timing
                     val syllablesStr = line.syllables.joinToString("") { s ->
                         "<${s.start.toTimeFormattedString()}>${s.content}"
-                    } + "<${line.end.toTimeFormattedString()}>"
+                    } + "<${endTimestamp.toTimeFormattedString()}>"
                     
                     builder.appendLine("$timeTag$voicePrefix$syllablesStr")
                     line.translation?.let { builder.appendLine("$timeTag$it") }
                     
                     if (line is KaraokeLine.MainKaraokeLine) {
                         line.accompanimentLines?.forEach { bgLine ->
+                            val bgEndTimestamp = bgLine.syllables.lastOrNull()?.end ?: bgLine.end
                             val bgSyllablesStr = bgLine.syllables.joinToString("") { s ->
                                 "<${s.start.toTimeFormattedString()}>${s.content}"
-                            } + "<${bgLine.end.toTimeFormattedString()}>"
+                            } + "<${bgEndTimestamp.toTimeFormattedString()}>"
                             
                             builder.appendLine("[bg:$bgSyllablesStr]")
                             
                             bgLine.translation?.let { trans ->
-                                builder.appendLine("[bg:<${bgLine.start.toTimeFormattedString()}>$trans<${bgLine.end.toTimeFormattedString()}>]")
+                                builder.appendLine("[bg:<${bgLine.start.toTimeFormattedString()}>$trans<${bgEndTimestamp.toTimeFormattedString()}>]")
                             }
                         }
                     }
