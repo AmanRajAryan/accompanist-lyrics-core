@@ -449,4 +449,28 @@ class TTMLParserTest {
             assertTrue(!it.content.contains("\n") && !it.content.contains("\r") && !it.content.contains("\t"))
         }
     }
+
+    @Test
+    fun testInvertedAndMissingEndAttributesNeverCrash() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml">
+              <body>
+                <div>
+                  <p begin="00:10.000" end="00:05.000">Line with inverted end</p>
+                  <p begin="00:15.000">Line with missing end</p>
+                  <p begin="00:20.000" end="00:10.000">
+                    <span begin="00:20.000" end="00:18.000">Inverted</span>
+                    <span begin="00:18.000" end="00:22.000">spans</span>
+                  </p>
+                </div>
+              </body>
+            </tt>
+        """.trimIndent()
+
+        val parsed = TTMLParser().parse(ttml)
+        assertEquals(3, parsed.lines.size)
+        parsed.lines.forEach { line ->
+            assertTrue(line.end >= line.start, "Line end (${line.end}) must be >= start (${line.start})")
+        }
+    }
 }

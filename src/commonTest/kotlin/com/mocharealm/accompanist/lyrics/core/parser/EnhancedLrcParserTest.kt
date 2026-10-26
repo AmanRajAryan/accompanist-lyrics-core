@@ -74,4 +74,51 @@ class EnhancedLrcParserTest {
         assertEquals(com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeAlignment.Start, (reParsed.lines[0] as KaraokeLine).alignment)
         assertEquals(com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeAlignment.End, (reParsed.lines[1] as KaraokeLine).alignment)
     }
+
+    @Test
+    fun testInvertedSyllableTimestampsNeverCrash() {
+        val lrc = """
+            [00:10.00]<00:10.00>First <00:08.50>Second <00:07.00>Third<00:06.00>
+        """.trimIndent().split("\n")
+
+        val parsed = EnhancedLrcParser.parse(lrc)
+        assertEquals(1, parsed.lines.size)
+        val line = parsed.lines[0] as KaraokeLine.MainKaraokeLine
+        kotlin.test.assertTrue(line.end >= line.start)
+        line.syllables.forEach { s ->
+            kotlin.test.assertTrue(s.end >= s.start)
+        }
+    }
+
+    @Test
+    fun testInvertedLineTimestampsNeverCrash() {
+        val lrc = """
+            [00:20.00]Later line
+            [00:10.00]Earlier line
+        """.trimIndent().split("\n")
+
+        val parsed = EnhancedLrcParser.parse(lrc)
+        assertEquals(2, parsed.lines.size)
+        parsed.lines.forEach { line ->
+            kotlin.test.assertTrue(line.end >= line.start)
+        }
+    }
+
+    @Test
+    fun testInvertedBgSyllablesNeverCrash() {
+        val lrc = """
+            [00:10.00]<00:10.00>Main<00:12.00>
+            [bg: <00:15.00>Back<00:11.00>ground<00:09.00>]
+        """.trimIndent().split("\n")
+
+        val parsed = EnhancedLrcParser.parse(lrc)
+        assertEquals(1, parsed.lines.size)
+        val line = parsed.lines[0] as KaraokeLine.MainKaraokeLine
+        val bg = line.accompanimentLines?.first()
+        assertNotNull(bg)
+        kotlin.test.assertTrue(bg.end >= bg.start)
+        bg.syllables.forEach { s ->
+            kotlin.test.assertTrue(s.end >= s.start)
+        }
+    }
 }

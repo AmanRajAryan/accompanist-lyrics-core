@@ -104,8 +104,10 @@ class TTMLParser(
         translations: Map<String, TTMLTranslation>,
         transliterations: Map<String, List<String>>
     ): ISyncedLine? {
-        val start = p.attr("begin")?.parseAsTime() ?: return null
-        val end = p.attr("end")?.parseAsTime() ?: return null
+        val rawStart = p.attr("begin")?.parseAsTime() ?: return null
+        val rawEnd = p.attr("end")?.parseAsTime() ?: rawStart
+        val start = rawStart
+        val end = maxOf(rawStart, rawEnd)
         val itunesKey = p.attr("itunes:key", "key")
 
         // 1. 解析主音轨音节
@@ -149,12 +151,14 @@ class TTMLParser(
             )
         }
 
+        val lineStart = minOf(start, syllables.minOfOrNull { it.start } ?: start)
+        val lineEnd = maxOf(lineStart, end, syllables.maxOfOrNull { it.end } ?: lineStart)
         return KaraokeLine.MainKaraokeLine(
             syllables = syllables,
             translation = inlineTranslation ?: itunesTranslation?.main,
             alignment = alignment,
-            start = start,
-            end = end,
+            start = lineStart,
+            end = lineEnd,
             accompanimentLines = accompanimentLines.ifEmpty { null },
             phonetic = linePhonetic
         )
@@ -179,12 +183,14 @@ class TTMLParser(
                 ?.takeIf { it.isNotEmpty() }
                 ?: translations[bgKey]?.background
 
+        val aStart = bgSpan.attr("begin")?.parseAsTime() ?: syllables.first().start
+        val aEnd = bgSpan.attr("end")?.parseAsTime() ?: syllables.last().end
         return KaraokeLine.AccompanimentKaraokeLine(
             syllables = syllables,
             translation = bgTranslation?.stripEnclosingParentheses(),
             alignment = alignment ?: KaraokeAlignment.Start,
-            start = bgSpan.attr("begin")?.parseAsTime() ?: syllables.first().start,
-            end = bgSpan.attr("end")?.parseAsTime() ?: syllables.last().end
+            start = aStart,
+            end = maxOf(aStart, aEnd)
         )
     }
 
@@ -350,11 +356,13 @@ class TTMLParser(
                         }
                     }
 
+                    val sStart = spanBegin.parseAsTime()
+                    val sEnd = spanEnd.parseAsTime()
                     syllables.add(
                         KaraokeSyllable(
                             content = syllableContent,
-                            start = spanBegin.parseAsTime(),
-                            end = spanEnd.parseAsTime()
+                            start = sStart,
+                            end = maxOf(sStart, sEnd)
                         )
                     )
                 }

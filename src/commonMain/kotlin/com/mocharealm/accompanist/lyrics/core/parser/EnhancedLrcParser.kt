@@ -171,12 +171,14 @@ object EnhancedLrcParser : ILyricsParser {
                 if (mainSyllables.isNotEmpty()) {
                     val offset = if (isRelative) startTime else startTime - firstTimestamp
                     val shifted = mainSyllables.map { it.copy(start = it.start + offset, end = it.end + offset) }
+                    val lineStart = shifted.minOf { it.start }
+                    val lineEnd = maxOf(lineStart, shifted.maxOf { it.end })
                     results.add(KaraokeLine.MainKaraokeLine(
                         syllables = shifted,
                         translation = null,
                         alignment = alignment,
-                        start = shifted.first().start,
-                        end = shifted.last().end
+                        start = lineStart,
+                        end = lineEnd
                     ))
                 } else if (textContent.isNotBlank()) {
                     // For typical lines without enhanced syllable parts
@@ -191,22 +193,26 @@ object EnhancedLrcParser : ILyricsParser {
                 if (bgSyllables.isNotEmpty()) {
                     val bgOffset = if (bgIsRelative) startTime else startTime - firstTimestamp
                     val shifted = bgSyllables.map { it.copy(start = it.start + bgOffset, end = it.end + bgOffset) }
+                    val bgStart = shifted.minOf { it.start }
+                    val bgEnd = maxOf(bgStart, shifted.maxOf { it.end })
                     results.add(KaraokeLine.AccompanimentKaraokeLine(
                         syllables = shifted,
                         translation = null,
                         alignment = KaraokeAlignment.Unspecified,
-                        start = shifted.first().start,
-                        end = shifted.last().end
+                        start = bgStart,
+                        end = bgEnd
                     ))
                 }
             }
         } else if (bgSyllables.isNotEmpty()) {
+            val bgStart = bgSyllables.minOf { it.start }
+            val bgEnd = maxOf(bgStart, bgSyllables.maxOf { it.end })
             results.add(KaraokeLine.AccompanimentKaraokeLine(
                 syllables = bgSyllables,
                 translation = null,
                 alignment = KaraokeAlignment.Unspecified,
-                start = bgSyllables.first().start,
-                end = bgSyllables.last().end
+                start = bgStart,
+                end = bgEnd
             ))
         }
 
@@ -245,7 +251,8 @@ object EnhancedLrcParser : ILyricsParser {
         if (this.isEmpty()) return emptyList()
         val list = mutableListOf<KaraokeSyllable>()
         for (i in 0 until this.size - 1) {
-            list.add(this[i].copy(end = this[i + 1].start))
+            val safeEnd = maxOf(this[i].start, this[i + 1].start)
+            list.add(this[i].copy(end = safeEnd))
         }
         val last = this.last()
         if (last.content.isNotEmpty()) {
@@ -325,8 +332,9 @@ object EnhancedLrcParser : ILyricsParser {
     private fun List<ISyncedLine>.rearrangeUncheckedLineTime(): List<ISyncedLine> =
         this.mapIndexed { index, line ->
             if (line is SyncedLine) {
-                val end = this.getOrNull(index + 1)?.start ?: Int.MAX_VALUE
-                line.copy(end = end)
+                val nextStart = this.getOrNull(index + 1)?.start ?: Int.MAX_VALUE
+                val safeEnd = maxOf(line.start, nextStart)
+                line.copy(end = safeEnd)
             } else {
                 line
             }
